@@ -138,3 +138,7 @@ https://www.youtube.com/watch?v=HctlRoi_RVA
 1. https://searchnetworking.techtarget.com/definition/TCP-IP
 2. https://searchnetworking.techtarget.com/definition/UDP-User-Datagram-Protocol
 3. https://stackoverflow.com/a/17511341
+
+### TO-DOs:
+- Add C++ implementation
+- Add javascript receiver implementation ?
