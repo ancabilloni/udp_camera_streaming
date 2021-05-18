@@ -19,11 +19,11 @@ class FrameSegment(object):
     # extract 64 bytes in case UDP frame overflown
     MAX_IMAGE_DGRAM = MAX_DGRAM - 64
 
-    def __init__(self, sock, port=12345, remote='127.0.0.1', quality=100):
+    def __init__(self, port=12345, remote='127.0.0.1', quality=100):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.quality = [
             int(cv2.IMWRITE_JPEG_QUALITY), quality
         ]
-        self.s = sock
         self.port = port
         self.addr = remote
 
@@ -45,7 +45,7 @@ class FrameSegment(object):
             end = min(
                 size, start + self.MAX_IMAGE_DGRAM
             )
-            self.s.sendto(
+            self.sock.sendto(
                 struct.pack("B", count) + dat[start:end],
                 (
                     self.addr,
@@ -55,17 +55,18 @@ class FrameSegment(object):
             start = end
             count -= 1
 
+    def quit(self, *largs):
+        self.sock.close()
+
 
 def main():
     """ Top level main function """
-    # Set up UDP socket
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     remote = '127.0.0.1'
     port = 12345
     quality = 50
 
-    fs = FrameSegment(sock, port, remote, quality)
+    fs = FrameSegment(port, remote, quality)
     cap = cv2.VideoCapture(2)
 
     while (cap.isOpened()):
@@ -77,7 +78,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
-    sock.close()
+    fs.quit()
 
 
 if __name__ == "__main__":
