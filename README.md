@@ -25,19 +25,26 @@ The implementation are two steps. OpenCV library is being used to obtain image f
 ```
 def main():
     """ Top level main function """
-    # Set UDP socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    port = 12345
+    # Set up UDP socket
 
-    fs = FrameSegment(s, port)
-    
-    cap = cv2.VideoCapture(0)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    remote = '127.0.0.1'
+    port = 12345
+    quality = 50
+
+    fs = FrameSegment(sock, port, remote, quality)
+    cap = cv2.VideoCapture(2)
+
     while (cap.isOpened()):
-        _, frame = cap.read()
-        fs.udp_frame(frame)
+        ret, frame = cap.read()
+
+        # if frame is read correctly
+        if ret:
+            fs.udp_frame(frame)
+
     cap.release()
     cv2.destroyAllWindows()
-    s.close()
+    sock.close()
 ```
 
 Something to note here is that the **encoding** and **decoding** feature in OpenCV being used to further compress the raw image size significantly but still maintaining decent image quality after decompress. 
@@ -50,35 +57,50 @@ In this simple implementation, I use the first byte for current segment number w
 
 ```
 class FrameSegment(object):
-    """ 
-    Object to break down image frame segment
-    if the size of image exceed maximum datagram size 
     """
-    MAX_DGRAM = 2**16
-    MAX_IMAGE_DGRAM = MAX_DGRAM - 64 # extract 64 bytes in case UDP frame overflown
-    def __init__(self, sock, port, addr="127.0.0.1"):
+    Object to break down image frame segment
+    if the size of image exceed maximum datagram size
+    """
+    MAX_DGRAM = 2 ** 16
+
+    # extract 64 bytes in case UDP frame overflown
+    MAX_IMAGE_DGRAM = MAX_DGRAM - 64
+
+    def __init__(self, sock, port=12345, remote='127.0.0.1', quality=100):
+        self.quality = [
+            int(cv2.IMWRITE_JPEG_QUALITY), quality
+        ]
         self.s = sock
         self.port = port
-        self.addr = addr
+        self.addr = remote
 
     def udp_frame(self, img):
-        """ 
-        Compress image and Break down
-        into data segments 
         """
-        compress_img = cv2.imencode('.jpg', img)[1]
-        dat = compress_img.tostring()
+        Compress image and Break down
+        into data segments
+        """
+
+        compress_img = cv2.imencode(
+            '.jpg', img, self.quality
+        )[1]
+        dat = compress_img.tobytes()
         size = len(dat)
-        num_of_segments = math.ceil(size/(MAX_IMAGE_DGRAM))
-        array_pos_start = 0
-        while num_of_segments:
-            array_pos_end = min(size, array_pos_start + MAX_IMAGE_DGRAM)
-            self.s.sendto(struct.pack("B", num_of_segments) +
-                dat[array_pos_start:array_pos_end], 
-                (self.addr, self.port)
+        count = ceil(size / self.MAX_IMAGE_DGRAM)
+        start = 0
+
+        while count:
+            end = min(
+                size, start + self.MAX_IMAGE_DGRAM
+            )
+            self.s.sendto(
+                struct.pack("B", count) + dat[start:end],
+                (
+                    self.addr,
+                    self.port
                 )
-            array_pos_start = array_pos_end
-            num_of_segments -= 1
+            )
+            start = end
+            count -= 1
 ```
 
 ### Image Frame Decode
@@ -92,38 +114,26 @@ The logic on the receiver's end is simple. It is to reverse the process of the s
 - Lastly, display the image.
 
 ```
-MAX_DGRAM = 2**16
-
-def dump_buffer(s):
-    """ Emptying buffer frame """
-    while True:
-        seg, addr = s.recvfrom(MAX_DGRAM)
-        print(seg[0])
-        if struct.unpack("B", seg[0:1])[0] == 1:
-            print("finish emptying buffer")
-            break
-
 def main():
     """ Getting image udp frame &
     concate before decode and output image """
-    
+
     # Set up socket
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.bind(('127.0.0.1', 12345))
+    s.bind(('localhost', 12345))
     dat = b''
-    dump_buffer(s)
 
     while True:
         seg, addr = s.recvfrom(MAX_DGRAM)
-        if struct.unpack("B", seg[0:1])[0] > 1:
-            dat += seg[1:]
-        else:
+
+        if struct.unpack("B", seg[0:1])[0] >= 1:
             dat += seg[1:]
             img = cv2.imdecode(np.fromstring(dat, dtype=np.uint8), 1)
-            cv2.imshow('frame', img)
+            cv2.imshow('Frame', img)
+            dat = b''
+
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-            dat = b''
 
     # cap.release()
     cv2.destroyAllWindows()

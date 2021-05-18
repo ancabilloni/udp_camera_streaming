@@ -1,60 +1,84 @@
 #!/usr/bin/env python
 
 from __future__ import division
-import cv2
-import numpy as np
+
 import socket
 import struct
-import math
+from math import ceil
+
+import cv2
 
 
 class FrameSegment(object):
-    """ 
-    Object to break down image frame segment
-    if the size of image exceed maximum datagram size 
     """
-    MAX_DGRAM = 2**16
-    MAX_IMAGE_DGRAM = MAX_DGRAM - 64 # extract 64 bytes in case UDP frame overflown
-    def __init__(self, sock, port, addr="127.0.0.1"):
+    Object to break down image frame segment
+    if the size of image exceed maximum datagram size
+    """
+    MAX_DGRAM = 2 ** 16
+
+    # extract 64 bytes in case UDP frame overflown
+    MAX_IMAGE_DGRAM = MAX_DGRAM - 64
+
+    def __init__(self, sock, port=12345, remote='127.0.0.1', quality=100):
+        self.quality = [
+            int(cv2.IMWRITE_JPEG_QUALITY), quality
+        ]
         self.s = sock
         self.port = port
-        self.addr = addr
+        self.addr = remote
 
     def udp_frame(self, img):
-        """ 
-        Compress image and Break down
-        into data segments 
         """
-        compress_img = cv2.imencode('.jpg', img)[1]
-        dat = compress_img.tostring()
+        Compress image and Break down
+        into data segments
+        """
+
+        compress_img = cv2.imencode(
+            '.jpg', img, self.quality
+        )[1]
+        dat = compress_img.tobytes()
         size = len(dat)
-        count = math.ceil(size/(self.MAX_IMAGE_DGRAM))
-        array_pos_start = 0
+        count = ceil(size / self.MAX_IMAGE_DGRAM)
+        start = 0
+
         while count:
-            array_pos_end = min(size, array_pos_start + self.MAX_IMAGE_DGRAM)
-            self.s.sendto(struct.pack("B", count) +
-                dat[array_pos_start:array_pos_end], 
-                (self.addr, self.port)
+            end = min(
+                size, start + self.MAX_IMAGE_DGRAM
+            )
+            self.s.sendto(
+                struct.pack("B", count) + dat[start:end],
+                (
+                    self.addr,
+                    self.port
                 )
-            array_pos_start = array_pos_end
+            )
+            start = end
             count -= 1
 
 
 def main():
     """ Top level main function """
     # Set up UDP socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    remote = '127.0.0.1'
     port = 12345
+    quality = 50
 
-    fs = FrameSegment(s, port)
-
+    fs = FrameSegment(sock, port, remote, quality)
     cap = cv2.VideoCapture(2)
+
     while (cap.isOpened()):
-        _, frame = cap.read()
-        fs.udp_frame(frame)
+        ret, frame = cap.read()
+
+        # if frame is read correctly
+        if ret:
+            fs.udp_frame(frame)
+
     cap.release()
     cv2.destroyAllWindows()
-    s.close()
+    sock.close()
+
 
 if __name__ == "__main__":
     main()
