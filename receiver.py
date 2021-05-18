@@ -22,9 +22,9 @@ def main():
 
     while True:
         seg, addr = s.recvfrom(MAX_DGRAM)
+        dat += seg[1:]
 
         if struct.unpack("B", seg[0:1])[0] >= 1:
-            dat += seg[1:]
             img = cv2.imdecode(np.fromstring(dat, dtype=np.uint8), 1)
             cv2.imshow('Frame', img)
             dat = b''
