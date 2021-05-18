@@ -2,11 +2,11 @@
 
 from __future__ import division
 
-import socket
-import struct
 from math import ceil
+from socket import AF_INET, SOCK_DGRAM, socket
+from struct import pack
 
-import cv2
+from cv2 import IMWRITE_JPEG_QUALITY, VideoCapture, destroyAllWindows, imencode
 
 
 class FrameSegment(object):
@@ -20,9 +20,9 @@ class FrameSegment(object):
     MAX_IMAGE_DGRAM = MAX_DGRAM - 64
 
     def __init__(self, port=12345, remote='127.0.0.1', quality=100):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock = socket(AF_INET, SOCK_DGRAM)
         self.quality = [
-            int(cv2.IMWRITE_JPEG_QUALITY), quality
+            int(IMWRITE_JPEG_QUALITY), quality
         ]
         self.port = port
         self.addr = remote
@@ -33,7 +33,7 @@ class FrameSegment(object):
         into data segments
         """
 
-        compress_img = cv2.imencode(
+        compress_img = imencode(
             '.jpg', img, self.quality
         )[1]
         dat = compress_img.tobytes()
@@ -46,7 +46,7 @@ class FrameSegment(object):
                 size, start + self.MAX_IMAGE_DGRAM
             )
             self.sock.sendto(
-                struct.pack("B", count) + dat[start:end],
+                pack("B", count) + dat[start:end],
                 (
                     self.addr,
                     self.port
@@ -67,7 +67,7 @@ def main():
     quality = 50
 
     fs = FrameSegment(port, remote, quality)
-    cap = cv2.VideoCapture(2)
+    cap = VideoCapture(2)
 
     while (cap.isOpened()):
         ret, frame = cap.read()
@@ -77,7 +77,7 @@ def main():
             fs.udp_frame(frame)
 
     cap.release()
-    cv2.destroyAllWindows()
+    destroyAllWindows()
     fs.quit()
 
 

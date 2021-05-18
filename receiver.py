@@ -2,20 +2,19 @@
 
 from __future__ import division
 
-import socket
-import struct
+from socket import AF_INET, SOCK_DGRAM, socket
+from struct import unpack
 
 from cv2 import destroyAllWindows, imdecode, imshow, waitKey
 from numpy import fromstring, uint8
-
-MAX_DGRAM = 2 ** 16
 
 
 def main():
     """ Getting image udp frame &
     concate before decode and output image """
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    MAX_DGRAM = 2 ** 16
+    sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind(('localhost', 12345))
     dat = b''
 
@@ -23,7 +22,7 @@ def main():
         seg, addr = sock.recvfrom(MAX_DGRAM)
         dat += seg[1:]
 
-        if struct.unpack("B", seg[0:1])[0] >= 1:
+        if unpack("B", seg[0:1])[0] >= 1:
             img = imdecode(fromstring(dat, dtype=uint8), 1)
             imshow('Frame', img)
             dat = b''

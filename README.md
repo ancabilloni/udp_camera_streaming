@@ -31,7 +31,7 @@ def main():
     quality = 50
 
     fs = FrameSegment(port, remote, quality)
-    cap = cv2.VideoCapture(2)
+    cap = VideoCapture(2)
 
     while (cap.isOpened()):
         ret, frame = cap.read()
@@ -41,7 +41,7 @@ def main():
             fs.udp_frame(frame)
 
     cap.release()
-    cv2.destroyAllWindows()
+    destroyAllWindows()
     fs.quit()
 ```
 
@@ -65,9 +65,9 @@ class FrameSegment(object):
     MAX_IMAGE_DGRAM = MAX_DGRAM - 64
 
     def __init__(self, port=12345, remote='127.0.0.1', quality=100):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock = socket(AF_INET, SOCK_DGRAM)
         self.quality = [
-            int(cv2.IMWRITE_JPEG_QUALITY), quality
+            int(IMWRITE_JPEG_QUALITY), quality
         ]
         self.port = port
         self.addr = remote
@@ -78,7 +78,7 @@ class FrameSegment(object):
         into data segments
         """
 
-        compress_img = cv2.imencode(
+        compress_img = imencode(
             '.jpg', img, self.quality
         )[1]
         dat = compress_img.tobytes()
@@ -91,7 +91,7 @@ class FrameSegment(object):
                 size, start + self.MAX_IMAGE_DGRAM
             )
             self.sock.sendto(
-                struct.pack("B", count) + dat[start:end],
+                pack("B", count) + dat[start:end],
                 (
                     self.addr,
                     self.port
@@ -119,7 +119,8 @@ def main():
     """ Getting image udp frame &
     concate before decode and output image """
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    MAX_DGRAM = 2 ** 16
+    sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind(('localhost', 12345))
     dat = b''
 
@@ -127,7 +128,7 @@ def main():
         seg, addr = sock.recvfrom(MAX_DGRAM)
         dat += seg[1:]
 
-        if struct.unpack("B", seg[0:1])[0] >= 1:
+        if unpack("B", seg[0:1])[0] >= 1:
             img = imdecode(fromstring(dat, dtype=uint8), 1)
             imshow('Frame', img)
             dat = b''
