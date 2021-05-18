@@ -129,7 +129,7 @@ def main():
         dat += seg[1:]
 
         if unpack("B", seg[0:1])[0] >= 1:
-            img = imdecode(fromstring(dat, dtype=uint8), 1)
+            img = imdecode(frombuffer(dat, dtype=uint8), 1)
             imshow('Frame', img)
             dat = b''
 

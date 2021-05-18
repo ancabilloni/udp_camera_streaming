@@ -6,7 +6,7 @@ from socket import AF_INET, SOCK_DGRAM, socket
 from struct import unpack
 
 from cv2 import destroyAllWindows, imdecode, imshow, waitKey
-from numpy import fromstring, uint8
+from numpy import frombuffer, uint8
 
 
 def main():
@@ -23,7 +23,7 @@ def main():
         dat += seg[1:]
 
         if unpack("B", seg[0:1])[0] >= 1:
-            img = imdecode(fromstring(dat, dtype=uint8), 1)
+            img = imdecode(frombuffer(dat, dtype=uint8), 1)
             imshow('Frame', img)
             dat = b''
 
